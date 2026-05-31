@@ -889,6 +889,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function appendMessageBubble(role, content, reasoning = '', thinkingTime = null, animate = true, bubbleIndex = null, usage = null, container = messagesList) {
         const bubble = document.createElement('div');
         bubble.className = `message-bubble ${role}`;
+        if (bubbleIndex !== null) {
+            bubble.dataset.index = bubbleIndex;
+        }
         
         // Generate message action buttons
         let actionsHTML = '';
@@ -2663,8 +2666,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isGenerating) return;
         
         const bubble = button.closest('.message-bubble');
-        const bubbles = Array.from(document.getElementById('messages-list').children);
-        const bubbleIndex = bubbles.indexOf(bubble);
+        let bubbleIndex = -1;
+        if (bubble.dataset.index !== undefined) {
+            bubbleIndex = parseInt(bubble.dataset.index, 10);
+        } else {
+            const bubbles = Array.from(bubble.parentElement.children);
+            bubbleIndex = bubbles.indexOf(bubble);
+        }
         if (bubbleIndex === -1) return;
         
         const session = chatSessions.find(s => s.id === activeSessionId);
@@ -3088,8 +3096,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!newText) return;
         
         const bubble = button.closest('.message-bubble');
-        const bubbles = Array.from(document.getElementById('messages-list').children);
-        const bubbleIndex = bubbles.indexOf(bubble);
+        let bubbleIndex = -1;
+        if (bubble.dataset.index !== undefined) {
+            bubbleIndex = parseInt(bubble.dataset.index, 10);
+        } else {
+            const bubbles = Array.from(bubble.parentElement.children);
+            bubbleIndex = bubbles.indexOf(bubble);
+        }
         if (bubbleIndex === -1) return;
         
         window.submitBranchPrompt(bubbleIndex, newText);
@@ -3129,22 +3142,40 @@ document.addEventListener('DOMContentLoaded', () => {
         // Auto trigger streaming send
         messageInput.value = '';
         
-        // Prepare Assistant placeholder bubble
-        const assistantBubble = document.createElement('div');
-        assistantBubble.className = 'message-bubble assistant';
-        assistantBubble.innerHTML = `
-            <div class="message-avatar" title="Assistant">DS</div>
+        // Prepare Assistant placeholder bubbles
+        const leftAssistantBubble = document.createElement('div');
+        leftAssistantBubble.className = 'message-bubble assistant';
+        leftAssistantBubble.innerHTML = `
+            <div class="message-avatar" title="${config.model.split('/').pop()}">DS</div>
             <div class="message-content-wrapper">
                 <div class="message-content markdown-body">
                     <span class="pulsar-loader"></span>
                 </div>
             </div>
         `;
-        messagesList.appendChild(assistantBubble);
+        messagesList.appendChild(leftAssistantBubble);
+        
+        let rightAssistantBubble = null;
+        const compareModelId = headerModelSelectCompare ? headerModelSelectCompare.value : config.compareModel;
+        
+        if (isCompareMode && messagesListRight) {
+            rightAssistantBubble = document.createElement('div');
+            rightAssistantBubble.className = 'message-bubble assistant';
+            rightAssistantBubble.innerHTML = `
+                <div class="message-avatar" title="${compareModelId.split('/').pop()}">DS</div>
+                <div class="message-content-wrapper">
+                    <div class="message-content markdown-body">
+                        <span class="pulsar-loader"></span>
+                    </div>
+                </div>
+            `;
+            messagesListRight.appendChild(rightAssistantBubble);
+        }
+        
         scrollToBottom();
         
         // Start streaming (inline execute)
-        triggerBranchStreaming(session, newBranchMessages, assistantBubble);
+        triggerBranchStreaming(session, newBranchMessages, leftAssistantBubble, rightAssistantBubble, compareModelId);
     };
 
     window.switchBranch = function(newIdx, event) {
@@ -3167,26 +3198,82 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('分支切換成功', `已跳轉至第 ${newIdx + 1} 個對話分支！`, 'success');
     };
 
-    async function triggerBranchStreaming(session, messages, assistantBubble) {
+    async function triggerBranchStreaming(session, messages, leftAssistantBubble, rightAssistantBubble = null, compareModelId = '') {
         isGenerating = true;
         sendBtn.disabled = true;
         stopBtn.style.display = 'flex';
         abortController = new AbortController();
         
+        // Build separated history arrays for streaming
+        const leftHistory = [{ role: 'system', content: config.systemPrompt }];
+        const rightHistory = [{ role: 'system', content: config.systemPrompt }];
+        
+        messages.forEach(msg => {
+            if (msg.role === 'user') {
+                leftHistory.push({ role: 'user', content: msg.content });
+                rightHistory.push({ role: 'user', content: msg.content });
+            } else {
+                if (msg.column === 'right') {
+                    rightHistory.push({ role: 'assistant', content: msg.content });
+                } else {
+                    leftHistory.push({ role: 'assistant', content: msg.content });
+                }
+            }
+        });
+        
         try {
-            const res = await streamResponse(config.model, 'left', assistantBubble, messages);
+            if (isCompareMode && rightAssistantBubble) {
+                if (messagesColumnLeft) messagesColumnLeft.classList.add('streaming-column');
+                if (messagesColumnRight) messagesColumnRight.classList.add('streaming-column');
+                
+                const [leftRes, rightRes] = await Promise.allSettled([
+                    streamResponse(config.model, 'left', leftAssistantBubble, leftHistory),
+                    streamResponse(compareModelId, 'right', rightAssistantBubble, rightHistory)
+                ]);
+                
+                if (messagesColumnLeft) messagesColumnLeft.classList.remove('streaming-column');
+                if (messagesColumnRight) messagesColumnRight.classList.remove('streaming-column');
+                
+                const leftData = leftRes.status === 'fulfilled' ? leftRes.value : { contentText: '連線代理失敗', reasoningText: '', thinkingTime: null, usage: null };
+                const rightData = rightRes.status === 'fulfilled' ? rightRes.value : { contentText: '連線代理失敗', reasoningText: '', thinkingTime: null, usage: null };
+                
+                // Save Left reply to active session messages
+                session.messages.push({
+                    role: 'assistant',
+                    content: leftData.contentText,
+                    reasoning: leftData.reasoningText,
+                    column: 'left',
+                    model: config.model,
+                    thinkingTime: leftData.thinkingTime,
+                    usage: leftData.usage
+                });
+                
+                // Save Right reply to active session messages
+                session.messages.push({
+                    role: 'assistant',
+                    content: rightData.contentText,
+                    reasoning: rightData.reasoningText,
+                    column: 'right',
+                    model: compareModelId,
+                    thinkingTime: rightData.thinkingTime,
+                    usage: rightData.usage
+                });
+            } else {
+                // Single column branch stream
+                const res = await streamResponse(config.model, 'left', leftAssistantBubble, leftHistory);
+                
+                session.messages.push({
+                    role: 'assistant',
+                    content: res.contentText,
+                    reasoning: res.reasoningText,
+                    column: 'left',
+                    model: config.model,
+                    thinkingTime: res.thinkingTime,
+                    usage: res.usage
+                });
+            }
             
-            // Save completed branch messages back to active branch list
-            session.messages.push({
-                role: 'assistant',
-                content: res.contentText,
-                reasoning: res.reasoningText,
-                column: 'left',
-                model: config.model,
-                thinkingTime: res.thinkingTime,
-                usage: res.usage
-            });
-            
+            // Sync branches list with the updated active messages
             session.branches[session.activeBranchIndex] = JSON.parse(JSON.stringify(session.messages));
             saveSessionsToStorage();
             
