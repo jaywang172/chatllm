@@ -348,7 +348,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateStatusDot();
 
         // 1. Restore Custom Theme Visual Cards & classes
-        const savedTheme = localStorage.getItem('dsv4_theme') || 'literary-tea';
+        const savedTheme = localStorage.getItem('dsv4_theme') || 'muji';
         document.body.className = '';
         document.body.classList.add(`theme-${savedTheme}`);
         const themeCards = document.querySelectorAll('.theme-card');
