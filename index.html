@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepSeek V4 Pro - NVIDIA NIM Chat</title>
+    
+    <!-- Google Fonts: Modern sans-serif Outfit, Monospace JetBrains Mono, and Noto Serif TC -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Noto+Serif+TC:wght@300;400;500;600;700;900&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Highlight.js - Elegant Dark Syntax Styling -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark-dimmed.min.css">
+    
+    <!-- KaTeX - Superb Mathematics Formulas -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    
+    <!-- Local custom stylesheet -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Drag and Drop Overlay -->
+    <div class="drag-overlay" id="drag-overlay">
+        <div class="drag-overlay-card">
+            <i data-lucide="file-up"></i>
+            <h3>將檔案拖曳至此</h3>
+            <p>支援解析 .txt, .md, .js, .json, .py, .html, .css 等純文字檔案</p>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <!-- Sidebar Panel -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="brand">
+                    <div class="brand-logo">
+                        <svg class="nvidia-logo" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M78.5 25C71.3 16.7 60.5 12 48.5 12C26.7 12 9 29.7 9 51.5C9 73.3 26.7 91 48.5 91C63.2 91 76 83 82.7 71C79 73.8 74.8 75.8 70 77C63.7 78.6 57 79 50.3 78C37.2 76.2 26.4 67.4 22 55C18.2 44 21.6 31.8 30.2 24C37.8 17 48.8 15 58.7 18.5C64 20.3 68.7 23.5 72.5 27.5C68.7 27.5 65.2 28.5 62 30.5C57.3 28.5 52 28 47 29C38 31 31.2 38.3 29.4 47.3C27.5 56.7 33 66 42.4 68.6C49.3 70.5 57 68.8 62.4 64.2C65.5 61.5 67.5 57.8 68 53.6C68 53 67.7 52.5 67.2 52.5H48C47.4 52.5 47 52.1 47 51.5V45.5C47 44.9 47.4 44.5 48 44.5H74.5C75.1 44.5 75.5 44.9 75.5 45.5C75.5 57.7 69.5 69 59 74.5C66.8 71.8 73.5 66.8 78 60C82 54 84 47 84 40C84 34.6 82.2 29.4 78.5 25Z" fill="currentColor"/>
+                        </svg>
+                        <span class="d-logo">DS</span>
+                    </div>
+                    <div class="brand-text">
+                        <span class="brand-title">NVIDIA NIM</span>
+                        <span class="brand-subtitle">DeepSeek V4 Pro</span>
+                    </div>
+                </div>
+                <button class="icon-btn close-sidebar-btn" id="close-sidebar-btn" title="關閉側邊欄">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            
+            <div class="sidebar-action-row" style="display: flex; gap: 8px; padding: 0 16px; margin-bottom: 12px;">
+                <button class="new-chat-btn" id="new-chat-btn" style="flex: 1; margin: 0; padding: 0 12px; height: 40px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <i data-lucide="plus"></i>
+                    <span>開啟新對話</span>
+                </button>
+                <button class="create-folder-btn" id="create-folder-btn" title="新建資料夾" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); border-radius: var(--radius-md, 8px); color: var(--text-secondary); cursor: pointer; transition: all 0.2s ease;">
+                    <i data-lucide="folder-plus"></i>
+                </button>
+            </div>
+            
+            <!-- Sidebar Search -->
+            <div class="sidebar-search">
+                <i data-lucide="search" class="search-icon"></i>
+                <input type="text" id="search-input" placeholder="搜尋對話標題..." autocomplete="off">
+            </div>
+            
+            <!-- Chat Sessions List -->
+            <div class="chat-sessions" id="chat-sessions">
+                <!-- Dynamically loaded chat items will go here -->
+            </div>
+            
+            <!-- Sidebar Footer Settings -->
+            <div class="sidebar-footer">
+                <div class="user-profile-card">
+                    <div class="user-avatar">
+                        <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=120&auto=format&fit=crop" alt="User Avatar" class="avatar-img" id="user-avatar-img">
+                        <div class="user-status-dot"></div>
+                    </div>
+                    <div class="user-info">
+                        <span class="user-name">智慧探求者</span>
+                        <span class="user-plan">NVIDIA NIM Pro</span>
+                    </div>
+                    <button class="icon-btn settings-gear-btn" id="open-settings-btn" title="系統與 API 設定">
+                        <i data-lucide="settings"></i>
+                    </button>
+                </div>
+                <div class="footer-actions">
+                    <button class="mini-btn" id="export-history-btn" title="匯出對話紀錄">
+                        <i data-lucide="download"></i>
+                    </button>
+                    <button class="mini-btn" id="import-history-btn" title="匯入對話紀錄">
+                        <i data-lucide="upload"></i>
+                        <input type="file" id="import-file-input" style="display: none;" accept=".json">
+                    </button>
+                    <button class="mini-btn" id="clear-all-btn" title="清除所有對話">
+                        <i data-lucide="trash-2"></i>
+                    </button>
+                    <button class="mini-btn quit-btn" id="quit-client-btn" title="關閉客戶端 (釋放背景進程)" style="border-color: rgba(239, 68, 68, 0.2); color: var(--color-danger);">
+                        <i data-lucide="power"></i>
+                    </button>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- Main Chat Canvas -->
+        <main class="chat-area">
+            <!-- Ambient Background Orbs -->
+            <div class="ambient-bg">
+                <div class="ambient-orb orb-1"></div>
+                <div class="ambient-orb orb-2"></div>
+                <div class="ambient-orb orb-3"></div>
+            </div>
+
+            <!-- Header bar -->
+            <header class="chat-header">
+                <div class="header-left">
+                    <button class="icon-btn menu-btn" id="menu-btn" title="展開側邊欄">
+                        <i data-lucide="menu"></i>
+                    </button>
+                    <button class="icon-btn desktop-sidebar-toggle-btn" id="desktop-sidebar-toggle-btn" title="摺疊側邊欄">
+                        <i data-lucide="sidebar"></i>
+                    </button>
+                    <div class="model-badge-container">
+                        <span class="model-badge" style="cursor: pointer; display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 9999px;">
+                            <span class="status-indicator" id="status-indicator"></span>
+                            <select id="header-model-select" style="background: transparent; border: none; color: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; outline: none; padding-right: 4px; font-family: inherit;">
+                                <option value="deepseek-ai/deepseek-v4-pro">DeepSeek-V4-Pro</option>
+                                <option value="deepseek-ai/deepseek-v4-flash">DeepSeek-V4-Flash</option>
+                                <option value="deepseek-ai/deepseek-r1">DeepSeek-R1 (深度推理)</option>
+                                <option value="custom" id="header-custom-option" style="display: none;">Custom Model</option>
+                            </select>
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="header-right" style="display: flex; align-items: center; gap: 10px;">
+                    <!-- Quick controls for parameters -->
+                    <div class="quick-controls">
+                        <div class="control-group">
+                            <label for="quick-reasoning">思考深度</label>
+                            <select id="quick-reasoning" class="select-input">
+                                <option value="max" selected>Think Max (極致推理)</option>
+                                <option value="high">Think High (高級邏輯)</option>
+                                <option value="none">Non-think (快速回答)</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label for="quick-temp">溫度 (Temp)</label>
+                            <span id="quick-temp-val">0.6</span>
+                            <input type="range" id="quick-temp" min="0" max="2" step="0.1" value="0.6" class="slider">
+                        </div>
+                    </div>
+                    
+                    <!-- Long Thread Backup & Share Actions -->
+                    <button class="outline-btn sm-btn header-action-btn" id="compare-mode-btn" title="⚔️ 開啟雙模型 PK 對照模式" type="button" style="height: 30px; padding: 0 10px; font-size: 12px; display: flex; align-items: center; gap: 4px; border-radius: var(--radius-sm, 6px); background: transparent; border: 1px solid var(--border-color); color: var(--text-secondary); cursor: pointer; transition: all 0.2s ease;">
+                        <i data-lucide="git-compare" style="width: 13px; height: 13px;"></i>
+                        <span>⚔️ 雙模型 PK</span>
+                    </button>
+                    <button class="outline-btn sm-btn header-action-btn" id="copy-thread-btn" title="一鍵複製整筆對話" type="button" style="height: 30px; padding: 0 10px; font-size: 12px; display: flex; align-items: center; gap: 4px; border-radius: var(--radius-sm, 6px); background: transparent; border: 1px solid var(--border-color); color: var(--text-secondary); cursor: pointer; transition: all 0.2s ease;">
+                        <i data-lucide="clipboard" style="width: 13px; height: 13px;"></i>
+                        <span>複製對話</span>
+                    </button>
+                    <button class="outline-btn sm-btn header-action-btn" id="export-md-btn" title="將整筆對話匯出為 Markdown" type="button" style="height: 30px; padding: 0 10px; font-size: 12px; display: flex; align-items: center; gap: 4px; border-radius: var(--radius-sm, 6px); background: transparent; border: 1px solid var(--border-color); color: var(--text-secondary); cursor: pointer; transition: all 0.2s ease;">
+                        <i data-lucide="download" style="width: 13px; height: 13px;"></i>
+                        <span>匯出 MD</span>
+                    </button>
+                </div>
+            </header>
+            
+            <!-- Chat logs & messages container -->
+            <div class="messages-container" id="messages-container">
+                <!-- Welcome/Empty state view -->
+                <div class="welcome-screen" id="welcome-screen">
+                    <div class="welcome-header">
+                        <h1>在思緒的流動中，尋找答案的輪廓。</h1>
+                        <p>安靜連接 DeepSeek 智慧。在這裡，讓說話變成書寫，讓靈感輕輕落地。</p>
+                        
+                        <!-- Persona presets chips -->
+                        <div class="persona-chips-container">
+                            <div class="persona-chip active" data-persona="general">
+                                <i data-lucide="sparkles"></i>
+                                <span>🌌 靈感隨筆</span>
+                            </div>
+                            <div class="persona-chip" data-persona="coder">
+                                <i data-lucide="code-2"></i>
+                                <span>💻 織造程式</span>
+                            </div>
+                            <div class="persona-chip" data-persona="translator">
+                                <i data-lucide="languages"></i>
+                                <span>🖋️ 琢磨文字</span>
+                            </div>
+                            <div class="persona-chip" data-persona="scholar">
+                                <i data-lucide="graduation-cap"></i>
+                                <span>☕ 思想沙龍</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="suggestions-grid">
+                        <div class="suggestion-card" data-prompt="用最純粹的 HTML 和 CSS 織造一個「安靜的個人寫作書房」網頁，包含暖茶色磨砂玻璃、典雅的思源宋體與流動的光影。">
+                            <div class="suggestion-title">
+                                <i data-lucide="feather"></i>
+                                <span>織造寫作書房</span>
+                            </div>
+                            <p class="suggestion-desc">"用 HTML/CSS 織造一個安靜的寫作書房網頁，包含暖茶色玻璃與宋體..."</p>
+                        </div>
+                        <div class="suggestion-card" data-prompt="使用 Python 設計一個詩詞韻腳自動分析儀，輸入一段現代詩或古典詞後，能自動剖析其音韻起伏並繪製出文字的聲律地圖。">
+                            <div class="suggestion-title">
+                                <i data-lucide="music"></i>
+                                <span>分析詩詞聲律</span>
+                            </div>
+                            <p class="suggestion-desc">"使用 Python 設計一個詩詞韻腳分析儀，剖析音韻起伏並繪製聲律地圖..."</p>
+                        </div>
+                        <div class="suggestion-card" data-prompt="分析赫曼·赫塞在《流浪者之歌》（Siddhartha）中「河流」這一意象的哲學隱喻，並探討它對現代人面對生活焦慮時的生命啟示。">
+                            <div class="suggestion-title">
+                                <i data-lucide="compass"></i>
+                                <span>尋索河流隱喻</span>
+                            </div>
+                            <p class="suggestion-desc">"探討赫曼·赫塞《流浪者之歌》中河流的哲學隱喻與生命啟示..."</p>
+                        </div>
+                        <div class="suggestion-card" data-prompt="在思緒繁雜、面臨創意瓶頸的深夜，提供五個溫柔且深刻的、適合與自己對話的自由書寫（Free Writing）練習指南。">
+                            <div class="suggestion-title">
+                                <i data-lucide="heart"></i>
+                                <span>深夜書寫練習</span>
+                            </div>
+                            <p class="suggestion-desc">"在面臨創意瓶頸的深夜，提供五個溫柔且深刻的自由書寫指南..."</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Alert for missing API Key -->
+                    <div class="api-key-warning" id="api-key-warning">
+                        <div class="warning-icon"><i data-lucide="alert-circle"></i></div>
+                        <div class="warning-content">
+                            <h4>尚未設定 NVIDIA API 密鑰</h4>
+                            <p>請前往 <a href="https://build.nvidia.com" target="_blank" rel="noopener">NVIDIA API Catalog</a> 獲取免費的 API 密鑰，並點擊下方按鈕或左下角「設定」填入密鑰。</p>
+                            <button class="setup-key-btn" id="setup-key-btn">立即設定 API 密鑰</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Chat canvas wrapper supporting Compare PK Mode -->
+                <div class="chat-canvas-wrapper" id="chat-canvas-wrapper">
+                    <!-- Left Column -->
+                    <div class="messages-column messages-column-left" id="messages-column-left">
+                        <div class="column-model-header" id="column-model-header-left" style="display: none;">
+                            <i data-lucide="cpu" style="width: 14px; height: 14px; color: var(--color-nvidia);"></i>
+                            <span id="column-model-name-left">DeepSeek-V4-Pro</span>
+                        </div>
+                        <!-- Chat Bubbles list (dynamic) -->
+                        <div class="messages-list" id="messages-list"></div>
+                    </div>
+                    
+                    <!-- Right Column (Compare Mode only) -->
+                    <div class="messages-column messages-column-right" id="messages-column-right" style="display: none;">
+                        <div class="column-model-header" id="column-model-header-right">
+                            <i data-lucide="cpu" style="width: 14px; height: 14px; color: var(--color-deepseek);"></i>
+                            <select id="header-model-select-compare" class="column-model-select" style="background: transparent; border: none; color: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; outline: none; padding-right: 4px; font-family: inherit;">
+                                <option value="deepseek-ai/deepseek-r1">DeepSeek-R1 (深度推理)</option>
+                                <option value="deepseek-ai/deepseek-v4-pro">DeepSeek-V4-Pro</option>
+                                <option value="deepseek-ai/deepseek-v4-flash">DeepSeek-V4-Flash</option>
+                            </select>
+                        </div>
+                        <div class="messages-list" id="messages-list-right"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Bottom Input Controls -->
+            <footer class="chat-footer">
+                <div class="chat-input-wrapper">
+                    <!-- Floating Stop Button -->
+                    <div class="floating-controls" id="floating-controls">
+                        <button class="stop-btn" id="stop-btn" style="display: none;">
+                            <i data-lucide="square"></i>
+                            <span>停止生成</span>
+                        </button>
+                    </div>
+                    
+                    <!-- Textarea message box -->
+                    <div class="input-container">
+                        <!-- Floating Slash Prompts Autocomplete Menu -->
+                        <div class="prompt-menu-overlay" id="prompt-menu-overlay" style="display: none;">
+                            <div class="prompt-menu" id="prompt-menu"></div>
+                        </div>
+                        <div class="attachments-preview" id="attachments-preview" style="display: none;"></div>
+                        <div class="input-row">
+                            <textarea class="message-input" id="message-input" placeholder="傳送訊息給 DeepSeek... (可拖曳純文字檔案上傳)" rows="1"></textarea>
+                            <div class="input-utils">
+                                <span class="char-counter" id="char-counter">0 字</span>
+                                <button class="icon-btn mic-btn" id="mic-btn" title="語音輸入">
+                                    <i data-lucide="mic"></i>
+                                </button>
+                                <button class="send-btn" id="send-btn" title="傳送訊息 (⌘↵)">
+                                    <i data-lucide="arrow-up"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="footer-note">
+                        <span>本網頁直連 NVIDIA NIM 官方 API 節點 · 支援 1,000,000 token 超長上下文</span>
+                    </div>
+                </div>
+            </footer>
+        </main>
+
+        <!-- Claude-style Artifacts Live Preview Side-Panel -->
+        <aside class="artifacts-panel" id="artifacts-panel" style="display: none;">
+            <div class="artifacts-resize-handle" id="artifacts-resize-handle"></div>
+            <div class="artifacts-card">
+                <div class="artifacts-header">
+                    <div class="artifacts-title-area">
+                        <i data-lucide="layout" class="art-icon" style="color: var(--color-deepseek); width: 16px; height: 16px;"></i>
+                        <h3 id="artifacts-title">預覽面板</h3>
+                    </div>
+                    <div class="artifacts-tabs">
+                        <button class="artifacts-tab active" data-art-tab="preview">
+                            <i data-lucide="eye" style="width: 12px; height: 12px;"></i>
+                            <span>預覽結果</span>
+                        </button>
+                        <button class="artifacts-tab" data-art-tab="code">
+                            <i data-lucide="code" style="width: 12px; height: 12px;"></i>
+                            <span>原始代碼</span>
+                        </button>
+                    </div>
+                    <button class="icon-btn close-artifacts-btn" id="close-artifacts-btn" title="關閉預覽">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+                <div class="artifacts-body">
+                    <!-- Preview sandboxed section -->
+                    <div class="artifacts-tab-content active" id="art-tab-preview">
+                        <iframe id="artifacts-iframe" sandbox="allow-scripts" style="display: block;"></iframe>
+                        <div id="artifacts-mermaid-container" style="display: none;"></div>
+                    </div>
+                    <!-- Raw Code section -->
+                    <div class="artifacts-tab-content" id="art-tab-code">
+                        <pre><code id="artifacts-code-block" class="hljs"></code></pre>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+    
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settings-modal">
+        <div class="modal-card dashboard-modal">
+            <div class="modal-header">
+                <h3><i data-lucide="sliders"></i> 系統與 API 設定</h3>
+                <button class="icon-btn close-modal-btn" id="close-settings-modal-btn">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-dashboard-wrapper">
+                <!-- Modal Sidebar Navigation -->
+                <aside class="modal-sidebar">
+                    <button class="modal-tab-btn active" data-tab="connection">
+                        <i data-lucide="link-2"></i>
+                        <span>API 與連線</span>
+                    </button>
+                    <button class="modal-tab-btn" data-tab="appearance">
+                        <i data-lucide="palette"></i>
+                        <span>視覺外觀</span>
+                    </button>
+                    <button class="modal-tab-btn" data-tab="parameters">
+                        <i data-lucide="sliders"></i>
+                        <span>生成參數</span>
+                    </button>
+                    <button class="modal-tab-btn" data-tab="prompts">
+                        <i data-lucide="terminal"></i>
+                        <span>自訂指令</span>
+                    </button>
+                </aside>
+                
+                <!-- Modal Content Area -->
+                <div class="modal-content-tabs">
+                    <!-- Tab 1: API & Connection -->
+                    <div class="modal-tab-content active" id="tab-connection">
+                        <!-- API Key Section -->
+                        <div class="setting-item">
+                            <label class="setting-label">NVIDIA API 密鑰</label>
+                            <div class="input-with-toggle">
+                                <input type="password" id="api-key-input" placeholder="nvapi-..." class="text-input">
+                                <button class="icon-btn toggle-password-btn" id="toggle-api-key-btn">
+                                    <i data-lucide="eye"></i>
+                                </button>
+                            </div>
+                            <p class="setting-desc">可在 NVIDIA API Catalog 註冊獲取。本密鑰僅儲存在您的瀏覽器 localDB 中，直接與官方 API 溝通，絕不外流。</p>
+                        </div>
+                        
+                        <!-- Connection Mode Section -->
+                        <div class="setting-item">
+                            <label class="setting-label">API 連接管道</label>
+                            <div class="radio-group">
+                                <label class="radio-label">
+                                    <input type="radio" name="connection-mode" value="proxy" checked>
+                                    <span>本地代理伺服器 (解決 CORS 阻擋，最穩定)</span>
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="connection-mode" value="direct">
+                                    <span>瀏覽器直連 (需確保 API 伺服器支援跨域)</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Connection Diagnostic Section -->
+                        <div class="setting-item diagnostic-box">
+                            <div class="diagnostic-header">
+                                <span class="setting-label">API 連線診斷</span>
+                                <span class="diagnostic-badge" id="diag-status">未檢測</span>
+                            </div>
+                            <div class="diagnostic-actions">
+                                <button class="outline-btn" id="test-connection-btn" type="button">
+                                    <i data-lucide="activity"></i>
+                                    <span>連線測試</span>
+                                </button>
+                                <div class="diagnostic-result" id="diag-result" style="display: none;">
+                                    <span class="latency-text">Ping 延遲: <strong id="diag-latency">--ms</strong></span>
+                                </div>
+                            </div>
+                            <p class="setting-desc">發送微型請求以測試您的 API 密鑰是否正確，並計算 NVIDIA 伺服器連線延遲。</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Tab 2: Appearance & Themes -->
+                    <div class="modal-tab-content" id="tab-appearance">
+                        <div class="setting-item">
+                            <label class="setting-label">應用程式主題</label>
+                            <div class="theme-grid">
+                                <div class="theme-card active" data-theme="nvidia-green">
+                                    <div class="theme-preview nvidia-preview"></div>
+                                    <span>黑曜石極光綠</span>
+                                </div>
+                                <div class="theme-card" data-theme="deepseek-blue">
+                                    <div class="theme-preview deepseek-preview"></div>
+                                    <span>星雲深邃藍</span>
+                                </div>
+                                <div class="theme-card" data-theme="cyberpunk-red">
+                                    <div class="theme-preview cyberpunk-preview"></div>
+                                    <span>深夜賽博朋克</span>
+                                </div>
+                                <div class="theme-card" data-theme="gold-luxury">
+                                    <div class="theme-preview gold-preview"></div>
+                                    <span>溫潤黑金石</span>
+                                </div>
+                                <div class="theme-card" data-theme="literary-tea">
+                                    <div class="theme-preview literary-preview"></div>
+                                    <span>文青溫潤茶香</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="setting-item">
+                            <label class="setting-label">對話文字大小</label>
+                            <div class="font-size-controls">
+                                <span id="font-size-val">15px</span>
+                                <input type="range" id="font-size-slider" min="13" max="20" step="1" value="15" class="slider">
+                            </div>
+                        </div>
+
+                        <div class="setting-item">
+                            <label class="setting-label">介面毛玻璃強度 (模糊度)</label>
+                            <div class="glass-intensity-controls">
+                                <span id="glass-blur-val">10px</span>
+                                <input type="range" id="glass-blur-slider" min="0" max="25" step="1" value="10" class="slider">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Tab 3: Model and Parameters -->
+                    <div class="modal-tab-content" id="tab-parameters">
+                        <!-- Persona Preset Section -->
+                        <div class="setting-item">
+                            <label class="setting-label" for="role-select">AI 角色定位 (Persona Preset)</label>
+                            <select id="role-select" class="select-input">
+                                <option value="general" selected>全能智慧助理 (通用回答)</option>
+                                <option value="coder">軟體架構專家 (編程、架構、排錯)</option>
+                                <option value="translator">外語翻譯專家 (流暢語境對照)</option>
+                                <option value="scholar">學術寫作論文顧問 (嚴謹、格式、引文)</option>
+                            </select>
+                            <p class="setting-desc">切換角色會自動為您填充合適的「系統提示詞 (System Prompt)」。</p>
+                        </div>
+                        
+                        <!-- Model Choice Section -->
+                        <div class="setting-item">
+                            <label class="setting-label" for="model-select">API 模型選擇</label>
+                            <select id="model-select" class="select-input">
+                                <option value="deepseek-ai/deepseek-v4-pro" selected>deepseek-ai/deepseek-v4-pro (推理大模型)</option>
+                                <option value="deepseek-ai/deepseek-v4-flash">deepseek-ai/deepseek-v4-flash (極速輕量版)</option>
+                                <option value="deepseek-ai/deepseek-r1">deepseek-ai/deepseek-r1 (深度推理 R1)</option>
+                                <option value="custom">-- 自訂模型 ID --</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Custom Model Input -->
+                        <div class="setting-item" id="custom-model-item" style="display: none;">
+                            <label class="setting-label" for="custom-model-input">自訂模型 ID</label>
+                            <input type="text" id="custom-model-input" placeholder="例如: nvidia/llama-3.1-nemotron-70b-instruct" class="text-input">
+                        </div>
+                        
+                        <!-- Max Tokens Slider -->
+                        <div class="setting-item">
+                            <div class="slider-header">
+                                <label for="max-tokens-input">最大生成 Token 數</label>
+                                <span id="max-tokens-val">4096</span>
+                            </div>
+                            <input type="range" id="max-tokens-input" min="512" max="16384" step="512" value="4096" class="slider">
+                        </div>
+                        
+                        <!-- System Prompt Input -->
+                        <div class="setting-item">
+                            <label class="setting-label" for="system-prompt-input">系統提示詞 (System Prompt)</label>
+                            <textarea id="system-prompt-input" rows="3" placeholder="你是由 DeepSeek 開發並運行在 NVIDIA NIM 的高階推理智能體..." class="textarea-input"></textarea>
+                        </div>
+                    </div>
+                    
+                    <!-- Tab 4: Custom Slash Prompts -->
+                    <div class="modal-tab-content" id="tab-prompts">
+                        <div class="setting-item flex-row-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                            <label class="setting-label" style="margin-bottom: 0;">自訂指令快捷庫 (Slash Commands)</label>
+                            <button class="primary-btn sm-btn" id="add-prompt-btn" type="button" style="padding: 6px 12px; font-size: 12px;">
+                                <i data-lucide="plus" style="width: 14px; height: 14px; margin-right: 4px;"></i>新增指令
+                            </button>
+                        </div>
+                        
+                        <!-- Slide-down Add prompt form -->
+                        <div class="add-prompt-form" id="add-prompt-form" style="display: none; flex-direction: column; gap: 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(0, 242, 254, 0.2); padding: 12px; border-radius: var(--radius-sm, 6px); margin-bottom: 16px;">
+                            <div style="display: flex; gap: 10px;">
+                                <div style="flex: 1;">
+                                    <label class="setting-label" style="font-size: 11px; margin-bottom: 4px;">指令縮寫 (例如: coach)</label>
+                                    <input type="text" id="new-prompt-cmd" placeholder="e.g. coach" class="text-input" style="height: 32px; font-size: 13px;">
+                                </div>
+                                <div style="flex: 1;">
+                                    <label class="setting-label" style="font-size: 11px; margin-bottom: 4px;">顯示名稱 (例如: 健身教練)</label>
+                                    <input type="text" id="new-prompt-name" placeholder="e.g. 健身教練" class="text-input" style="height: 32px; font-size: 13px;">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="setting-label" style="font-size: 11px; margin-bottom: 4px;">指令完整 Prompt 內容</label>
+                                <textarea id="new-prompt-content" rows="3" placeholder="請扮演專業的健身教練，為我解答以下關於健身與飲食的問題：" class="textarea-input" style="font-size: 13px;"></textarea>
+                            </div>
+                            <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                                <button class="outline-btn sm-btn" id="cancel-add-prompt-btn" type="button" style="padding: 4px 10px; font-size: 11px; height: 28px;">取消</button>
+                                <button class="primary-btn sm-btn" id="save-new-prompt-btn" type="button" style="padding: 4px 10px; font-size: 11px; height: 28px;">保存</button>
+                            </div>
+                        </div>
+                        
+                        <div class="custom-prompts-list" id="custom-prompts-list" style="display: flex; flex-direction: column; gap: 10px; max-height: 250px; overflow-y: auto; padding-right: 4px;">
+                            <!-- Dynamic items will be injected here -->
+                        </div>
+                        <p class="setting-desc" style="margin-top: 12px;">在輸入框首字鍵入「/」時會彈出選單。您可以自訂名稱與展開填入的完整 Prompt，打造個人專屬指令庫。</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="outline-btn" id="cancel-settings-btn">取消</button>
+                <button class="primary-btn" id="save-settings-btn">儲存設定</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Dynamic Prompts Variable Compilation Modal -->
+    <div class="modal-overlay" id="variable-modal" style="display: none; z-index: 10000;">
+        <div class="modal-card" style="max-width: 480px; width: 100%; min-height: auto;">
+            <div class="modal-header">
+                <h3>
+                    <i data-lucide="edit-3" style="color: var(--color-deepseek); margin-right: 6px; width: 18px; height: 18px; vertical-align: middle;"></i>
+                    <span style="vertical-align: middle;">填寫指令變數</span>
+                </h3>
+                <button class="icon-btn close-modal-btn" onclick="window.closeVariableModal()">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="variable-modal-body" style="display: flex; flex-direction: column; gap: 14px; padding: 20px;">
+                <!-- Dynamically generated variable input fields will be injected here -->
+            </div>
+            <div class="modal-footer" style="padding-top: 14px; border-top: 1px solid var(--border-color);">
+                <button class="outline-btn" onclick="window.closeVariableModal()">取消</button>
+                <button class="primary-btn" id="submit-variables-btn">編譯並套用</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Marked.js (Markdown parsing) -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <!-- Highlight.js (Code Highlighting) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <!-- Add language packs if needed, highlight.js automatically handles popular languages natively -->
+    
+    <!-- KaTeX (Math typesetting) -->
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+    
+    <!-- Mermaid.js (Diagrams rendering) -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        if (window.mermaid) {
+            window.mermaid.initialize({ startOnLoad: false, theme: 'dark' });
+        }
+    </script>
+    
+    <!-- Main application logic -->
+    <script src="app.js"></script>
+
+    <!-- Glassmorphic Voice Deck Panel -->
+    <div class="voice-control-deck" id="voice-control-deck">
+        <div class="voice-deck-blur-bg"></div>
+        <div class="voice-deck-content">
+            <div class="voice-deck-left">
+                <span class="pulse-indicator-circle"></span>
+                <span class="voice-deck-title">語音播報艙</span>
+            </div>
+            
+            <div class="voice-deck-center">
+                <button class="deck-btn" id="deck-play-pause-btn" title="播放 / 暫停">
+                    <i data-lucide="play" id="deck-play-icon"></i>
+                </button>
+                <button class="deck-btn" id="deck-stop-btn" title="停止">
+                    <i data-lucide="square"></i>
+                </button>
+                
+                <div class="deck-slider-container">
+                    <i data-lucide="gauge" class="deck-slider-icon"></i>
+                    <input type="range" id="deck-speed-slider" min="0.75" max="2.0" step="0.25" value="1.0" class="deck-slider">
+                    <span id="deck-speed-val" class="deck-slider-val">1.0x</span>
+                </div>
+                
+                <div class="deck-select-container">
+                    <i data-lucide="speech" class="deck-select-icon"></i>
+                    <select id="deck-voice-select" class="deck-select">
+                        <!-- Voices dynamically populated -->
+                    </select>
+                </div>
+            </div>
+            
+            <div class="voice-deck-right">
+                <button class="deck-close-btn" id="deck-close-btn" title="隱藏面板">
+                    <i data-lucide="minimize-2"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications Container -->
+    <div class="toast-container" id="toast-container"></div>
+</body>
+</html>
