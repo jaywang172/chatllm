@@ -18,6 +18,61 @@ document.addEventListener('DOMContentLoaded', () => {
     let memoryEnabled = true;
     const dbEndpoint = window.location.protocol === 'file:' ? 'http://localhost:3000/api/sessions' : '/api/sessions';
 
+    // Code Space State variables
+    let codespaceVariables = ['主題', '顏色'];
+    let codespaceExamples = [
+        {
+            inputs: { '主題': '文青電子鐘', '顏色': '鼠尾草綠' },
+            output: `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>文青電子鐘</title>
+    <style>
+        body {
+            background: #f5f2eb;
+            color: #4a3e3d;
+            font-family: 'Noto Serif TC', serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .clock-card {
+            background: #faf8f5;
+            border: 1px solid rgba(140, 125, 110, 0.15);
+            padding: 30px 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(140, 125, 110, 0.05);
+            text-align: center;
+        }
+        .time {
+            font-size: 48px;
+            color: #b87a6c;
+            letter-spacing: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="clock-card">
+        <div style="font-size: 14px; opacity: 0.6; margin-bottom: 8px;">靜止的流光</div>
+        <div class="time" id="clock">00:00:00</div>
+    </div>
+    <script>
+        function updateTime() {
+            const now = new Date();
+            const timeStr = now.toTimeString().split(' ')[0];
+            document.getElementById('clock').textContent = timeStr;
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
+    </script>
+</body>
+</html>`
+        }
+    ];
+
     // ----------------------------------------------------------------------
     // TOAST NOTIFICATION SYSTEM
     // ----------------------------------------------------------------------
@@ -186,6 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
         initDiagnosticTool();
         initCustomPrompts();
         setupCustomPromptsListeners();
+        initCodeSpace();
         
         // Initial setup for the app view
         if (chatSessions.length > 0) {
@@ -3718,6 +3774,558 @@ ${memories.length > 0 ? memories.map(m => `- ${m}`).join('\n') : '（目前記�
             }
         } catch (err) {
             console.error('[Memory Extract Error] Silent extraction failed:', err);
+        }
+    }
+
+    // ----------------------------------------------------------------------
+    // CODE SPACE SYSTEM BUILDER ENGINE (🧩 系統組裝工坊)
+    // ----------------------------------------------------------------------
+    function initCodeSpace() {
+        const codespaceModeBtn = document.getElementById('codespace-mode-btn');
+        const systemInstructionTextarea = document.getElementById('cs-system-instruction');
+        const variablesList = document.getElementById('cs-variables-list');
+        const addVarBtn = document.getElementById('cs-add-var-btn');
+        const examplesList = document.getElementById('cs-examples-list');
+        const addExampleBtn = document.getElementById('cs-add-example-btn');
+        const testFields = document.getElementById('cs-test-fields');
+        const runBtn = document.getElementById('cs-run-btn');
+        const stopBtn = document.getElementById('cs-stop-btn');
+        const saveTemplateBtn = document.getElementById('cs-save-template-btn');
+
+        if (!codespaceModeBtn) return;
+
+        // Toggle Codespace mode
+        codespaceModeBtn.addEventListener('click', () => {
+            const isActive = document.body.classList.toggle('codespace-mode-active');
+            if (isActive) {
+                // If compare mode is active, temp disable it visually to prevent overlapping
+                const chatCanvasWrapper = document.querySelector('.chat-canvas-wrapper');
+                if (chatCanvasWrapper && chatCanvasWrapper.classList.contains('compare-mode-active')) {
+                    chatCanvasWrapper.classList.remove('compare-mode-active');
+                }
+                
+                // Hide artifacts panel if open
+                const artifactsPanel = document.getElementById('artifacts-panel');
+                if (artifactsPanel) artifactsPanel.style.display = 'none';
+
+                showToast('已切換至 Code Space', '系統級組裝工坊已開啟！', 'info');
+                // Run dynamic parse on first load
+                parseVariablesFromSystemInstruction();
+                renderCSVariables();
+                renderCSExamples();
+                renderCSTestGround();
+            } else {
+                // Restore compare mode status if isCompareMode is active
+                const chatCanvasWrapper = document.querySelector('.chat-canvas-wrapper');
+                if (chatCanvasWrapper && isCompareMode) {
+                    chatCanvasWrapper.classList.add('compare-mode-active');
+                }
+                showToast('已返回對話模式', '您可繼續與 DeepSeek 進行日常靈感對話。', 'info');
+            }
+            lucide.createIcons();
+        });
+
+        // Automatically parse variables from textarea input
+        if (systemInstructionTextarea) {
+            systemInstructionTextarea.addEventListener('input', () => {
+                parseVariablesFromSystemInstruction();
+                renderCSVariables();
+                renderCSExamples();
+                renderCSTestGround();
+            });
+        }
+
+        // Add custom variable manually
+        if (addVarBtn) {
+            addVarBtn.addEventListener('click', () => {
+                const varName = prompt('請輸入新變數名稱 (例如：語調、受眾、輸出格式)：');
+                if (!varName) return;
+                const cleanName = varName.trim().replace(/[{}]/g, '');
+                if (!cleanName) return;
+                
+                if (codespaceVariables.includes(cleanName)) {
+                    showToast('重複的變數', '該變數宣告已存在！', 'warning');
+                    return;
+                }
+
+                codespaceVariables.push(cleanName);
+                // Also append the variable tag to system prompt textarea at the end
+                if (systemInstructionTextarea) {
+                    const text = systemInstructionTextarea.value;
+                    systemInstructionTextarea.value = text + ` {{${cleanName}}}`;
+                }
+                parseVariablesFromSystemInstruction();
+                renderCSVariables();
+                renderCSExamples();
+                renderCSTestGround();
+                showToast('已宣告變數', `已新增變數 {{${cleanName}}}！`, 'success');
+            });
+        }
+
+        // Add example row
+        if (addExampleBtn) {
+            addExampleBtn.addEventListener('click', () => {
+                const newExample = { inputs: {}, output: '' };
+                codespaceVariables.forEach(v => {
+                    newExample.inputs[v] = '';
+                });
+                codespaceExamples.push(newExample);
+                renderCSExamples();
+                showToast('已新增範例行', '請填寫少樣本範例輸入與期望輸出。', 'info');
+            });
+        }
+
+        // Tab switches on the right sandbox card
+        const csTabButtons = document.querySelectorAll('.cs-tab-btn');
+        csTabButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tabId = btn.dataset.csTab;
+                
+                // Toggle tab active button styles
+                csTabButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                // Toggle contents
+                document.querySelectorAll('.cs-tab-content').forEach(c => c.style.display = 'none');
+                const targetContent = document.getElementById(`cs-tab-${tabId}`);
+                if (targetContent) {
+                    if (tabId === 'preview') {
+                        targetContent.style.display = 'flex';
+                    } else {
+                        targetContent.style.display = 'block';
+                    }
+                }
+            });
+        });
+
+        // Run build / Compile trigger
+        if (runBtn) {
+            runBtn.addEventListener('click', csRunBuild);
+        }
+
+        // Stop generation
+        if (stopBtn) {
+            stopBtn.addEventListener('click', () => {
+                if (abortController) {
+                    abortController.abort();
+                    isGenerating = false;
+                    runBtn.disabled = false;
+                    stopBtn.style.display = 'none';
+                    showToast('編譯已終止', '系統編譯進程已被使用者手動終止。', 'warning');
+                }
+            });
+        }
+
+        // Save custom template as Slash Prompt
+        if (saveTemplateBtn) {
+            saveTemplateBtn.addEventListener('click', () => {
+                const code = document.getElementById('cs-code-block').textContent.trim();
+                if (!code) {
+                    showToast('無編譯內容', '請先成功編譯系統生成代碼後再行儲存！', 'warning');
+                    return;
+                }
+
+                const templateName = prompt('請為此系統範本命名 (例如：時鐘小工具、履歷生成器)：');
+                if (!templateName) return;
+                const cleanName = templateName.trim();
+                if (!cleanName) return;
+
+                // Load custom prompts
+                let customPrompts = JSON.parse(localStorage.getItem('dsv4_custom_prompts')) || [];
+                const cmdTrigger = cleanName.toLowerCase().replace(/\s+/g, '-');
+                
+                // Add to list
+                customPrompts.push({
+                    cmd: cmdTrigger,
+                    name: cleanName,
+                    prompt: systemInstructionTextarea.value.trim() + `\n\n【生成代碼結果】：\n` + code
+                });
+
+                localStorage.setItem('dsv4_custom_prompts', JSON.stringify(customPrompts));
+                
+                // Re-render slash prompts in main chat
+                if (typeof initCustomPrompts === 'function') {
+                    initCustomPrompts();
+                }
+
+                showToast('儲存成功', `系統已成功儲存為自訂快捷指令 「/${cmdTrigger}」！`, 'success');
+            });
+        }
+    }
+
+    // Dynamic Variables Parser helper
+    function parseVariablesFromSystemInstruction() {
+        const textarea = document.getElementById('cs-system-instruction');
+        if (!textarea) return;
+        
+        const text = textarea.value;
+        const regex = /\{\{(.*?)\}\}/g;
+        const found = [];
+        let match;
+        
+        while ((match = regex.exec(text)) !== null) {
+            const cleanName = match[1].trim();
+            if (cleanName && !found.includes(cleanName)) {
+                found.push(cleanName);
+            }
+        }
+
+        // Keep any manually added variables that might not be in the text yet
+        codespaceVariables.forEach(v => {
+            if (!found.includes(v)) {
+                found.push(v);
+            }
+        });
+
+        codespaceVariables = found;
+    }
+
+    // Render Variables List Helper
+    function renderCSVariables() {
+        const list = document.getElementById('cs-variables-list');
+        if (!list) return;
+
+        list.innerHTML = '';
+        if (codespaceVariables.length === 0) {
+            list.innerHTML = '<span style="font-size:12px; color:var(--text-muted); text-align:center; padding:10px;">目前尚未宣告變數。請在指令中使用 {{變數名}}</span>';
+            return;
+        }
+
+        codespaceVariables.forEach((v, index) => {
+            const row = document.createElement('div');
+            row.className = 'cs-var-row';
+            row.innerHTML = `
+                <span class="cs-var-badge">{{${v}}}</span>
+                <span style="font-size:12px; color:var(--text-secondary); flex:1;">自訂變數欄位</span>
+                <button class="icon-btn" title="刪除此變數" onclick="window.deleteCSVariable('${v}', event)" style="color:var(--color-danger); opacity:0.7;">
+                    <i data-lucide="trash-2" style="width:13px; height:13px;"></i>
+                </button>
+            `;
+            list.appendChild(row);
+        });
+        lucide.createIcons();
+    }
+
+    // Global variable delete handler
+    window.deleteCSVariable = function(name, event) {
+        if (event) event.stopPropagation();
+        codespaceVariables = codespaceVariables.filter(v => v !== name);
+        
+        // Remove from examples
+        codespaceExamples.forEach(ex => {
+            if (ex.inputs && ex.inputs[name] !== undefined) {
+                delete ex.inputs[name];
+            }
+        });
+
+        // Also clean up any occurrences in system prompt
+        const textarea = document.getElementById('cs-system-instruction');
+        if (textarea) {
+            const regex = new RegExp(`\\\\{\\\\{\\\\s*${name}\\\\s*\\\\}\\\\}`, 'g');
+            textarea.value = textarea.value.replace(regex, '');
+        }
+
+        renderCSVariables();
+        renderCSExamples();
+        renderCSTestGround();
+        showToast('變數已刪除', `已從系統宣告中移除 {{${name}}}。`, 'info');
+    };
+
+    // Render Few-shot Examples Helper
+    function renderCSExamples() {
+        const container = document.getElementById('cs-examples-list');
+        if (!container) return;
+
+        container.innerHTML = '';
+        if (codespaceExamples.length === 0) {
+            container.innerHTML = '<span style="font-size:12px; color:var(--text-muted); text-align:center; padding:20px; display:block;">當前少樣本範例庫為空。請點擊上方「新增範例」按鈕引導 AI 學習！</span>';
+            return;
+        }
+
+        codespaceExamples.forEach((ex, idx) => {
+            const card = document.createElement('div');
+            card.className = 'cs-example-card';
+            
+            // Build dynamic input inputs
+            let inputsGridHTML = '';
+            codespaceVariables.forEach(v => {
+                const val = ex.inputs[v] !== undefined ? ex.inputs[v] : '';
+                inputsGridHTML += `
+                    <div class="cs-example-input-item">
+                        <span class="cs-example-label" title="${v}">${v}</span>
+                        <input type="text" class="cs-var-input cs-example-val-input" data-idx="${idx}" data-var="${v}" value="${val}" placeholder="輸入範例資料...">
+                    </div>
+                `;
+            });
+
+            card.innerHTML = `
+                <div class="cs-example-header">
+                    <span class="cs-example-title">📚 Few-shot 學習範例 #${idx + 1}</span>
+                    <button class="icon-btn" title="刪除此範例" onclick="window.deleteCSExample(${idx}, event)" style="color:var(--color-danger); padding:2px;">
+                        <i data-lucide="trash-2" style="width:13px; height:13px;"></i>
+                    </button>
+                </div>
+                <div class="cs-example-inputs-grid">
+                    ${inputsGridHTML || '<span style="font-size:11px; color:var(--text-muted);">無變數需要輸入</span>'}
+                </div>
+                <div style="display:flex; flex-direction:column; gap:4px; margin-top:4px;">
+                    <span class="cs-example-label">期待輸出結果:</span>
+                    <textarea class="cs-textarea cs-example-output-input" data-idx="${idx}" style="font-family:var(--font-mono); font-size:11px; height:70px;" placeholder="請填入此範例的期望輸出 Code / Text內容...">${ex.output || ''}</textarea>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+
+        // Bind examples data inputs listeners
+        const valInputs = container.querySelectorAll('.cs-example-val-input');
+        valInputs.forEach(input => {
+            input.addEventListener('input', () => {
+                const idx = parseInt(input.dataset.idx);
+                const variable = input.dataset.var;
+                if (codespaceExamples[idx]) {
+                    if (!codespaceExamples[idx].inputs) codespaceExamples[idx].inputs = {};
+                    codespaceExamples[idx].inputs[variable] = input.value;
+                }
+            });
+        });
+
+        const outputInputs = container.querySelectorAll('.cs-example-output-input');
+        outputInputs.forEach(textarea => {
+            textarea.addEventListener('input', () => {
+                const idx = parseInt(textarea.dataset.idx);
+                if (codespaceExamples[idx]) {
+                    codespaceExamples[idx].output = textarea.value;
+                }
+            });
+        });
+
+        lucide.createIcons();
+    }
+
+    // Delete few-shot example
+    window.deleteCSExample = function(idx, event) {
+        if (event) event.stopPropagation();
+        codespaceExamples.splice(idx, 1);
+        renderCSExamples();
+        showToast('已刪除範例', '該少樣本範例行已從工坊中移除。', 'info');
+    };
+
+    // Render Test Ground Helper
+    function renderCSTestGround() {
+        const container = document.getElementById('cs-test-fields');
+        if (!container) return;
+
+        container.innerHTML = '';
+        if (codespaceVariables.length === 0) {
+            container.innerHTML = '<span style="font-size:12px; color:var(--text-muted); text-align:center; padding:10px; display:block;">目前沒有自訂變數。可以直接點擊「拼裝編譯」發起基本系統生成！</span>';
+            return;
+        }
+
+        codespaceVariables.forEach(v => {
+            const row = document.createElement('div');
+            row.className = 'cs-test-field-row';
+            row.innerHTML = `
+                <span class="cs-test-label">填寫測試數據 : {{${v}}}</span>
+                <input type="text" class="cs-var-input cs-test-val-input" data-var="${v}" style="height:32px; font-size:12.5px;" placeholder="請輸入 ${v} 的實時組裝測試資料...">
+            `;
+            container.appendChild(row);
+        });
+    }
+
+    // Clean markdown visual wrapper code ticks
+    function cleanMarkdownCodeBlocks(text) {
+        let clean = text.trim();
+        // Remove markdown starting blocks e.g. ```html
+        clean = clean.replace(/^```[a-zA-Z]*\n/, '');
+        // Remove markdown ending blocks e.g. ```
+        clean = clean.replace(/\n```$/, '');
+        return clean.trim();
+    }
+
+    // Run build / Compile implementation
+    async function csRunBuild() {
+        const sysInstructionTextarea = document.getElementById('cs-system-instruction');
+        const runBtn = document.getElementById('cs-cs-run-btn') || document.getElementById('cs-run-btn');
+        const stopBtn = document.getElementById('cs-stop-btn');
+        const codeBlock = document.getElementById('cs-code-block');
+        const iframe = document.getElementById('cs-preview-iframe');
+        const emptyState = document.getElementById('cs-preview-empty');
+
+        if (!sysInstructionTextarea || !runBtn) return;
+
+        // Collect current test input variables
+        const testInputs = {};
+        const inputs = document.querySelectorAll('.cs-test-val-input');
+        inputs.forEach(input => {
+            testInputs[input.dataset.var] = input.value.trim();
+        });
+
+        // 1. Compile System Prompt System Instruction
+        let systemPrompt = sysInstructionTextarea.value.trim();
+        codespaceVariables.forEach(v => {
+            const val = testInputs[v] || '';
+            const replaceRegex = new RegExp(`\\{\\{\\s*${v}\\s*\\}\\}`, 'g');
+            systemPrompt = systemPrompt.replace(replaceRegex, val);
+        });
+
+        // 2. Stitch Few-shot Examples
+        let examplesPrompt = '';
+        if (codespaceExamples.length > 0) {
+            examplesPrompt = '以下是系統編譯對齊的 Few-shot 學習範例：\n\n';
+            codespaceExamples.forEach((ex, idx) => {
+                examplesPrompt += `【範例 #${idx + 1} 輸入】\n`;
+                codespaceVariables.forEach(v => {
+                    examplesPrompt += `${v}: ${ex.inputs[v] || ''}\n`;
+                });
+                examplesPrompt += `【期待範例 #${idx + 1} 輸出系統結果】\n${ex.output || ''}\n`;
+                examplesPrompt += `--- [範例 #${idx + 1} 結束] ---\n\n`;
+            });
+        }
+
+        // 3. Stitched Test Query
+        let queryPrompt = '【最新實時組裝系統輸入】\n';
+        codespaceVariables.forEach(v => {
+            queryPrompt += `${v}: ${testInputs[v] || ''}\n`;
+        });
+
+        // Render prompt blueprint visualize labels
+        document.getElementById('cs-bp-system').textContent = systemPrompt;
+        document.getElementById('cs-bp-examples').textContent = examplesPrompt || '（未配置少樣本學習範例）';
+        document.getElementById('cs-bp-query').textContent = queryPrompt;
+
+        // Switch to Code View to see streaming output live
+        const codeTabBtn = document.querySelector('.cs-tab-btn[data-cs-tab="code"]');
+        if (codeTabBtn) codeTabBtn.click();
+
+        // Start Streaming setup
+        isGenerating = true;
+        runBtn.disabled = true;
+        if (stopBtn) stopBtn.style.display = 'flex';
+        codeBlock.textContent = '系統編譯啟動中...';
+        
+        // Hide iframe and show empty during compile
+        if (iframe) iframe.style.display = 'none';
+        if (emptyState) {
+            emptyState.style.display = 'flex';
+            const h5 = emptyState.querySelector('h5');
+            const p = emptyState.querySelector('p');
+            if (h5) h5.textContent = '系統正在實時編譯中...';
+            if (p) p.textContent = '編譯完畢後，小工具將在此安全沙盒中自動加載渲染運作。';
+        }
+
+        abortController = new AbortController();
+
+        // Build Payload
+        const messages = [
+            {
+                role: 'system',
+                content: systemPrompt + (examplesPrompt ? '\n\n' + examplesPrompt : '')
+            },
+            {
+                role: 'user',
+                content: queryPrompt
+            }
+        ];
+
+        const payload = {
+            model: config.model,
+            messages: messages,
+            temperature: config.temperature,
+            max_tokens: config.maxTokens,
+            stream: true
+        };
+
+        const endpointUrl = window.location.protocol === 'file:' ? 'http://localhost:3000/api/chat' : '/api/chat';
+        const requestHeaders = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${config.apiKey}`
+        };
+
+        try {
+            const response = await fetch(endpointUrl, {
+                method: 'POST',
+                headers: requestHeaders,
+                body: JSON.stringify(payload),
+                signal: abortController.signal
+            });
+
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                throw new Error(errData.error || `HTTP 錯誤 ${response.status}`);
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder('utf-8');
+            let buffer = '';
+            let completeText = '';
+            codeBlock.textContent = ''; // clear loading state
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop(); // keep last incomplete line
+
+                for (let line of lines) {
+                    const cleanLine = line.trim();
+                    if (!cleanLine) continue;
+                    if (cleanLine === 'data: [DONE]') continue;
+
+                    if (cleanLine.startsWith('data: ')) {
+                        try {
+                            const parsed = JSON.parse(cleanLine.substring(6));
+                            const delta = parsed.choices?.[0]?.delta?.content || '';
+                            if (delta) {
+                                completeText += delta;
+                                codeBlock.textContent = completeText;
+                                
+                                // Auto scroll code display view
+                                const codeContainer = document.getElementById('cs-tab-code');
+                                if (codeContainer) {
+                                    codeContainer.scrollTop = codeContainer.scrollHeight;
+                                }
+                            }
+                        } catch (e) {
+                            // ignore malformed SSE json
+                        }
+                    }
+                }
+            }
+
+            // Generation Finished successfully!
+            isGenerating = false;
+            runBtn.disabled = false;
+            if (stopBtn) stopBtn.style.display = 'none';
+
+            // Clean code blocks
+            const extracted = cleanMarkdownCodeBlocks(completeText);
+
+            // Automatically render inside Live Sandbox tab!
+            const previewTabBtn = document.querySelector('.cs-tab-btn[data-cs-tab="preview"]');
+            if (previewTabBtn) previewTabBtn.click();
+
+            if (iframe && emptyState) {
+                iframe.style.display = 'block';
+                emptyState.style.display = 'none';
+
+                const doc = iframe.contentDocument || iframe.contentWindow.document;
+                doc.open();
+                doc.write(extracted);
+                doc.close();
+            }
+
+            showToast('編譯完成', '系統拼裝成果已成功載入 Live Sandbox！', 'success');
+
+        } catch (err) {
+            if (err.name === 'AbortError') return;
+            console.error('[Code Space Build Error]', err);
+            codeBlock.textContent = `❌ 編譯進程失敗：\n${err.message}`;
+            isGenerating = false;
+            runBtn.disabled = false;
+            if (stopBtn) stopBtn.style.display = 'none';
+            showToast('編譯失敗', err.message, 'error');
         }
     }
 

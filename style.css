@@ -3608,3 +3608,376 @@ body.theme-literary-tea .memory-chip-item:hover {
     color: var(--color-danger);
     transform: scale(1.1);
 }
+
+/* ==========================================================================
+   CODE SPACE SYSTEM WORKSPACE STYLES (🧩 系統組裝工坊)
+   ========================================================================== */
+
+/* Active toggle view visibility handler */
+body.codespace-mode-active #messages-container,
+body.codespace-mode-active .chat-input-area,
+body.codespace-mode-active .welcome-screen {
+    display: none !important;
+}
+
+body.codespace-mode-active #codespace-workspace {
+    display: grid !important;
+}
+
+body.codespace-mode-active #codespace-mode-btn {
+    border-color: var(--color-deepseek) !important;
+    color: var(--color-deepseek) !important;
+    background: rgba(var(--color-deepseek-rgb), 0.05) !important;
+}
+
+body.theme-literary-tea.codespace-mode-active #codespace-mode-btn {
+    border-color: #b87a6c !important;
+    color: #b87a6c !important;
+    background: rgba(184, 122, 108, 0.06) !important;
+}
+
+/* Three-column Layout */
+#codespace-workspace {
+    display: grid;
+    grid-template-columns: 1fr 1.15fr 1.25fr;
+    gap: 16px;
+    height: calc(100vh - 68px); /* Height subtracting the header */
+    padding: 16px;
+    box-sizing: border-box;
+    overflow: hidden;
+    background: transparent;
+    animation: cs-fade-in 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes cs-fade-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.cs-col {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    min-width: 0;
+}
+
+.cs-card {
+    background: var(--bg-card, rgba(30, 30, 30, 0.6));
+    backdrop-filter: blur(var(--glass-blur, 10px));
+    -webkit-backdrop-filter: blur(var(--glass-blur, 10px));
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md, 10px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+body.theme-literary-tea .cs-card {
+    background: #faf8f5;
+    border-color: rgba(140, 125, 110, 0.15);
+    box-shadow: 0 4px 20px rgba(140, 125, 110, 0.05);
+}
+
+.cs-card:hover {
+    border-color: var(--border-focus);
+}
+
+body.theme-literary-tea .cs-card:hover {
+    border-color: rgba(184, 122, 108, 0.4);
+}
+
+/* Card Header & Body */
+.cs-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+    min-height: 42px;
+    box-sizing: border-box;
+}
+
+body.theme-literary-tea .cs-card-header {
+    border-bottom-color: rgba(140, 125, 110, 0.08);
+}
+
+.cs-card-header h4 {
+    margin: 0;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+}
+
+body.theme-literary-tea .cs-card-header h4 {
+    font-family: var(--font-serif);
+    color: #4a3e3d;
+}
+
+.cs-card-icon {
+    width: 14px;
+    height: 14px;
+    color: var(--color-deepseek);
+}
+
+body.theme-literary-tea .cs-card-icon {
+    color: #b87a6c;
+}
+
+.cs-card-body {
+    padding: 14px;
+    box-sizing: border-box;
+}
+
+/* Textarea & Text Input Styles */
+.cs-textarea {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.02);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm, 6px);
+    padding: 10px;
+    font-size: 13px;
+    line-height: 1.5;
+    font-family: var(--font-sans);
+    resize: none;
+    box-sizing: border-box;
+    transition: all 0.2s ease;
+    outline: none;
+}
+
+body.theme-literary-tea .cs-textarea {
+    background: #ffffff;
+    border-color: rgba(140, 125, 110, 0.18);
+    font-family: var(--font-serif);
+}
+
+.cs-textarea:focus {
+    border-color: var(--color-deepseek);
+    background: rgba(var(--color-deepseek-rgb), 0.01);
+}
+
+body.theme-literary-tea .cs-textarea:focus {
+    border-color: #b87a6c;
+    box-shadow: 0 0 0 3px rgba(184, 122, 108, 0.08);
+}
+
+.cs-tip {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin: 4px 0 0 0;
+    line-height: 1.4;
+}
+
+/* Variables & Dynamic Fields */
+.cs-var-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0,0,0,0.01);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm, 6px);
+    padding: 8px 10px;
+    box-sizing: border-box;
+    transition: all 0.2s ease;
+}
+
+body.theme-literary-tea .cs-var-row {
+    background: #fbfaf8;
+    border-color: rgba(140, 125, 110, 0.12);
+}
+
+.cs-var-badge {
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--color-deepseek);
+    background: rgba(var(--color-deepseek-rgb), 0.06);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+body.theme-literary-tea .cs-var-badge {
+    color: #b87a6c;
+    background: rgba(184, 122, 108, 0.06);
+}
+
+.cs-var-input {
+    flex: 1;
+    height: 28px;
+    border: 1px solid var(--border-color);
+    background: rgba(0,0,0,0.01);
+    border-radius: 4px;
+    padding: 0 8px;
+    font-size: 12px;
+    color: var(--text-primary);
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+body.theme-literary-tea .cs-var-input {
+    background: #ffffff;
+    border-color: rgba(140, 125, 110, 0.18);
+}
+
+.cs-var-input:focus {
+    border-color: var(--color-deepseek);
+}
+
+body.theme-literary-tea .cs-var-input:focus {
+    border-color: #b87a6c;
+}
+
+/* Examples Few-shot UI */
+.cs-example-card {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm, 6px);
+    background: rgba(0,0,0,0.015);
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    position: relative;
+    box-sizing: border-box;
+}
+
+body.theme-literary-tea .cs-example-card {
+    background: #faf8f5;
+    border-color: rgba(140, 125, 110, 0.15);
+}
+
+.cs-example-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px dashed var(--border-color);
+    padding-bottom: 6px;
+    margin-bottom: 2px;
+}
+
+.cs-example-title {
+    font-size: 11.5px;
+    font-weight: bold;
+    color: var(--text-secondary);
+}
+
+.cs-example-inputs-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.cs-example-input-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.cs-example-label {
+    font-size: 11px;
+    width: 80px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+/* Test Ground Form Labels */
+.cs-test-field-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.cs-test-label {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+/* Sandbox Tab Control Buttons */
+.cs-tab-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 12px;
+    height: 100%;
+    position: relative;
+    transition: color 0.2s ease;
+}
+
+.cs-tab-btn::after {
+    content: "";
+    position: absolute;
+    bottom: -1px;
+    left: 0; right: 0;
+    height: 2px;
+    background: transparent;
+    transition: background 0.2s ease;
+}
+
+.cs-tab-btn.active {
+    color: var(--color-deepseek);
+}
+
+body.theme-literary-tea .cs-tab-btn.active {
+    color: #b87a6c;
+}
+
+.cs-tab-btn.active::after {
+    background: var(--color-deepseek);
+}
+
+body.theme-literary-tea .cs-tab-btn.active::after {
+    background: #b87a6c;
+}
+
+/* Stitched Blueprint visual wrapper */
+.cs-bp-box {
+    margin: 0;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm, 4px);
+    background: rgba(0,0,0,0.02);
+    padding: 10px;
+    max-height: 180px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+
+body.theme-literary-tea .cs-bp-box {
+    background: #ffffff;
+    border-color: rgba(140, 125, 110, 0.14);
+}
+
+/* Custom Scrollbar inside workspace */
+.cs-card-body::-webkit-scrollbar,
+#cs-tab-code::-webkit-scrollbar,
+#cs-tab-blueprint::-webkit-scrollbar {
+    width: 6px;
+}
+
+.cs-card-body::-webkit-scrollbar-thumb,
+#cs-tab-code::-webkit-scrollbar-thumb,
+#cs-tab-blueprint::-webkit-scrollbar-thumb {
+    background: rgba(0,0,0,0.06);
+    border-radius: 999px;
+}
+
+body.theme-literary-tea .cs-card-body::-webkit-scrollbar-thumb {
+    background: rgba(140, 125, 110, 0.12);
+}
+
