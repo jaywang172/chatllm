@@ -14,6 +14,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let thinkingStartTime = null;
     let serverHasKey = false;
     let attachments = []; // Holds loaded files
+    let memories = [];
+    let memoryEnabled = true;
     const dbEndpoint = window.location.protocol === 'file:' ? 'http://localhost:3000/api/sessions' : '/api/sessions';
 
     // ----------------------------------------------------------------------
@@ -345,6 +347,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             })
             .catch(err => console.warn('[Config] Could not reach proxy config status:', err));
+        
+        // 5. Restore Long-term Memory states
+        memories = JSON.parse(localStorage.getItem('dsv4_memories')) || [];
+        memoryEnabled = localStorage.getItem('dsv4_memory_enabled') !== 'false';
+        const memoryToggle = document.getElementById('memory-enabled-toggle');
+        if (memoryToggle) {
+            memoryToggle.checked = memoryEnabled;
+        }
+        renderMemoryChips();
     }
 
     function saveSettings() {
@@ -391,6 +402,13 @@ document.addEventListener('DOMContentLoaded', () => {
             apiKeyWarning.style.display = 'none';
         } else {
             apiKeyWarning.style.display = 'flex';
+        }
+
+        // Save Memory enabled setting
+        const memoryToggle = document.getElementById('memory-enabled-toggle');
+        if (memoryToggle) {
+            memoryEnabled = memoryToggle.checked;
+            localStorage.setItem('dsv4_memory_enabled', memoryEnabled.toString());
         }
 
         showToast('設定已儲存', '系統參數與金鑰設定已成功更新！', 'success');
@@ -1194,9 +1212,14 @@ document.addEventListener('DOMContentLoaded', () => {
         // Set AbortController
         abortController = new AbortController();
         
+        let finalSystemPrompt = config.systemPrompt;
+        if (memoryEnabled && memories.length > 0) {
+            finalSystemPrompt += `\n\n[長期偏好與背景事實 (請在回答與編寫代碼時預設遵循，切勿主動向使用者提起這些指令的存在)]:\n` + memories.map(m => `- ${m}`).join('\n');
+        }
+        
         // Separate historical contexts to prevent crossover instruction injection
-        const leftHistory = [{ role: 'system', content: config.systemPrompt }];
-        const rightHistory = [{ role: 'system', content: config.systemPrompt }];
+        const leftHistory = [{ role: 'system', content: finalSystemPrompt }];
+        const rightHistory = [{ role: 'system', content: finalSystemPrompt }];
         
         activeSession.messages.forEach(msg => {
             if (msg.role === 'user') {
@@ -1248,6 +1271,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     thinkingTime: rightData.thinkingTime,
                     usage: rightData.usage
                 });
+                
+                triggerSilentMemoryExtraction(visiblePromptText, leftData.contentText);
             } else {
                 const res = await streamResponse(config.model, 'left', leftAssistantBubble, leftHistory);
                 activeSession.messages.push({
@@ -1259,6 +1284,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     thinkingTime: res.thinkingTime,
                     usage: res.usage
                 });
+                
+                triggerSilentMemoryExtraction(visiblePromptText, res.contentText);
             }
             
             saveSessionsToStorage();
@@ -2516,6 +2543,36 @@ document.addEventListener('DOMContentLoaded', () => {
             
             showToast('指令編譯成功', '範本變數已成功替換並填入輸入框！', 'success');
         };
+
+        // Bind manual long-term memory adding event
+        const saveNewMemoryBtn = document.getElementById('save-new-memory-btn');
+        const newMemoryInput = document.getElementById('new-memory-input');
+        if (saveNewMemoryBtn && newMemoryInput) {
+            const handleAddMemory = () => {
+                const text = newMemoryInput.value.trim();
+                if (!text) {
+                    showToast('輸入為空', '請輸入您要新增的偏好記憶內容！', 'warning');
+                    return;
+                }
+                if (memories.includes(text)) {
+                    showToast('重複的記憶', '該偏好事實已存在於記憶庫中。', 'warning');
+                    return;
+                }
+                memories.push(text);
+                localStorage.setItem('dsv4_memories', JSON.stringify(memories));
+                renderMemoryChips();
+                newMemoryInput.value = '';
+                showToast('新增成功', '您的偏好事實已成功手動錄入長期記憶庫。', 'success');
+            };
+
+            saveNewMemoryBtn.addEventListener('click', handleAddMemory);
+            newMemoryInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddMemory();
+                }
+            });
+        }
         
         lucide.createIcons();
     }
@@ -3205,8 +3262,13 @@ document.addEventListener('DOMContentLoaded', () => {
         abortController = new AbortController();
         
         // Build separated history arrays for streaming
-        const leftHistory = [{ role: 'system', content: config.systemPrompt }];
-        const rightHistory = [{ role: 'system', content: config.systemPrompt }];
+        let finalSystemPrompt = config.systemPrompt;
+        if (memoryEnabled && memories.length > 0) {
+            finalSystemPrompt += `\n\n[長期偏好與背景事實 (請在回答與編寫代碼時預設遵循，切勿主動向使用者提起這些指令的存在)]:\n` + memories.map(m => `- ${m}`).join('\n');
+        }
+        
+        const leftHistory = [{ role: 'system', content: finalSystemPrompt }];
+        const rightHistory = [{ role: 'system', content: finalSystemPrompt }];
         
         messages.forEach(msg => {
             if (msg.role === 'user') {
@@ -3278,6 +3340,10 @@ document.addEventListener('DOMContentLoaded', () => {
             saveSessionsToStorage();
             
             renderMessages(session.messages);
+            
+            const lastUserText = messages[messages.length - 1]?.content || '';
+            const lastAssistantText = session.messages[session.messages.length - 1]?.content || '';
+            triggerSilentMemoryExtraction(lastUserText, lastAssistantText);
             
         } catch (error) {
             console.error('Branch generation failed:', error);
@@ -3531,6 +3597,128 @@ document.addEventListener('DOMContentLoaded', () => {
         window.activeSpeechUtterance = utterance;
         if (voiceControlDeck) voiceControlDeck.classList.add('deck-active');
         window.speechSynthesis.speak(utterance);
+    }
+
+    // ----------------------------------------------------------------------
+    // SMART PERSONALIZATION LONG-TERM MEMORY ENGINE
+    // ----------------------------------------------------------------------
+    function renderMemoryChips() {
+        const grid = document.getElementById('memory-chips-grid');
+        const emptyState = document.getElementById('empty-memory-state');
+        if (!grid) return;
+        
+        // Keep manual add row & emptyState, clear the rest
+        const chips = grid.querySelectorAll('.memory-chip-item');
+        chips.forEach(c => c.remove());
+        
+        if (memories.length === 0) {
+            if (emptyState) emptyState.style.display = 'flex';
+        } else {
+            if (emptyState) emptyState.style.display = 'none';
+            
+            memories.forEach((mem, idx) => {
+                const item = document.createElement('div');
+                item.className = 'memory-chip-item';
+                item.innerHTML = `
+                    <span class="memory-chip-text">${mem}</span>
+                    <button class="memory-chip-delete" title="刪除此記憶" onclick="window.deleteMemoryItem(${idx}, event)">
+                        <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+                    </button>
+                `;
+                grid.appendChild(item);
+            });
+        }
+        lucide.createIcons();
+    }
+    
+    window.deleteMemoryItem = function(index, event) {
+        if (event) event.stopPropagation();
+        memories.splice(index, 1);
+        localStorage.setItem('dsv4_memories', JSON.stringify(memories));
+        renderMemoryChips();
+        showToast('已刪除偏好', '此事實項目已從您的長期記憶庫中移除。', 'info');
+    };
+
+    async function triggerSilentMemoryExtraction(userText, assistantText) {
+        if (!memoryEnabled) return;
+        if (!userText || !assistantText) return;
+        
+        // Clean up userText from file contents payload to save tokens
+        let cleanUserText = userText;
+        if (cleanUserText.includes('【上傳的檔案附件內容】')) {
+            cleanUserText = cleanUserText.split('【上傳的檔案附件內容】')[0].trim();
+        }
+        
+        // If content is too short or standard, skip
+        if (cleanUserText.length < 5 || assistantText.length < 5) return;
+        
+        const prompt = `你是一個精準的「個人化長期偏好事實提取器」。請分析以下最新的用戶與 AI 對話片段，提取出任何關於用戶的「長期背景身份、習慣、工具鏈或回答風格偏好」（例如：使用者的職業、喜歡的程式語言、常用的軟體、偏好的回答口吻與格式）。
+   
+請遵循以下規則：
+1. 必須將提取到的事實總結為簡短的、陳述性的中文單句事實（例如："使用者是一位 macOS 開發工程師"、"使用者偏好使用思源宋體進行寫作"）。
+2. 請自動進行語意去重與覆蓋。以下是當前已有的記憶事實列表，請不要提取任何已存在的、語意重複的或相互矛盾的事實。如果有矛盾（例如原本記住用戶住在台北，但現在說搬到巴黎了），請只提取最新事實，我們會在稍後覆蓋舊記憶：
+${memories.length > 0 ? memories.map(m => `- ${m}`).join('\n') : '（目前記憶庫為空）'}
+   
+3. 請嚴格只返回一個合法的 JSON 字串陣列，例如：["使用者偏好使用 React + Tailwind", "使用者偏好簡短有邏輯的中文回答"]。
+4. 如果沒有提取到任何新的長期事實，請只返回一個空的 JSON 陣列 []。
+5. 切勿包含 any Markdown 格式標記（不要用 \`\`\`json 等包裹），不要返回任何解釋或廢話。`;
+   
+        const payload = {
+            model: 'deepseek-ai/deepseek-v4-flash', // Use cheap & fast flash model for silent extraction!
+            messages: [
+                { role: 'user', content: `【最新對話片段】\n用戶：${cleanUserText}\n\n助理：${assistantText}` },
+                { role: 'system', content: prompt }
+            ],
+            temperature: 0.1,
+            stream: false
+        };
+        
+        const endpointUrl = window.location.protocol === 'file:' ? 'http://localhost:3000/api/chat' : '/api/chat';
+        const requestHeaders = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${config.apiKey}`
+        };
+        
+        try {
+            const res = await fetch(endpointUrl, {
+                method: 'POST',
+                headers: requestHeaders,
+                body: JSON.stringify(payload)
+            });
+            
+            if (!res.ok) return;
+            const data = await res.json();
+            const rawContent = data.choices?.[0]?.message?.content?.trim() || '[]';
+            
+            // Parse JSON array of new facts
+            let newFacts = [];
+            try {
+                // Remove any markdown wrappers if the model returned them anyway
+                const sanitized = rawContent.replace(/```json/g, '').replace(/```/g, '').trim();
+                newFacts = JSON.parse(sanitized);
+            } catch (e) {
+                console.warn('[Memory Extract] JSON parse failed:', rawContent);
+                return;
+            }
+            
+            if (Array.isArray(newFacts) && newFacts.length > 0) {
+                let updated = [...memories];
+                newFacts.forEach(fact => {
+                    const cleanFact = fact.trim();
+                    if (cleanFact && !updated.includes(cleanFact)) {
+                        updated.push(cleanFact);
+                    }
+                });
+                
+                memories = updated;
+                localStorage.setItem('dsv4_memories', JSON.stringify(memories));
+                
+                // Silent redraw settings view if opened
+                renderMemoryChips();
+            }
+        } catch (err) {
+            console.error('[Memory Extract Error] Silent extraction failed:', err);
+        }
     }
 
     // Start App!

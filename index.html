@@ -371,6 +371,10 @@
                         <i data-lucide="terminal"></i>
                         <span>自訂指令</span>
                     </button>
+                    <button class="modal-tab-btn" data-tab="memory">
+                        <i data-lucide="brain"></i>
+                        <span>長期記憶庫</span>
+                    </button>
                 </aside>
                 
                 <!-- Modal Content Area -->
@@ -550,6 +554,39 @@
                             <!-- Dynamic items will be injected here -->
                         </div>
                         <p class="setting-desc" style="margin-top: 12px;">在輸入框首字鍵入「/」時會彈出選單。您可以自訂名稱與展開填入的完整 Prompt，打造個人專屬指令庫。</p>
+                    </div>
+                    
+                    <!-- Tab 5: Long-term Memory Hub -->
+                    <div class="modal-tab-content" id="tab-memory">
+                        <div class="setting-item flex-row-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                            <div>
+                                <label class="setting-label" style="margin-bottom: 2px;">🧠 AI 個人化長期記憶庫</label>
+                                <p class="setting-desc" style="margin: 0;">讓 DeepSeek 在背景默默記住您的偏好，在後續對話中自動提供個人化回答。</p>
+                            </div>
+                            <label class="switch-container" style="display: inline-flex; align-items: center; cursor: pointer; gap: 8px;">
+                                <input type="checkbox" id="memory-enabled-toggle" style="display: none;">
+                                <div class="switch-slider" id="memory-enabled-slider"></div>
+                            </label>
+                        </div>
+                        
+                        <!-- Manual memory add form -->
+                        <div class="add-memory-row" style="display: flex; gap: 8px; margin-bottom: 16px;">
+                            <input type="text" id="new-memory-input" placeholder="手動錄入您的偏好 (例如: 我偏好使用 React + Tailwind)" class="text-input" style="flex: 1; height: 36px; font-size: 13px;">
+                            <button class="primary-btn sm-btn" id="save-new-memory-btn" type="button" style="height: 36px; padding: 0 16px; font-size: 12px; display: flex; align-items: center; gap: 4px;">
+                                <i data-lucide="plus"></i>
+                                <span>新增</span>
+                            </button>
+                        </div>
+                        
+                        <!-- Memory Chips Grid list -->
+                        <div class="memory-chips-grid" id="memory-chips-grid" style="display: flex; flex-direction: column; gap: 8px; max-height: 220px; overflow-y: auto; padding-right: 4px;">
+                            <!-- Dynamic items injected here -->
+                            <div class="empty-memory-state" id="empty-memory-state" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px; text-align: center; color: var(--text-muted); background: rgba(0,0,0,0.02); border: 1px dashed var(--border-color); border-radius: var(--radius-md);">
+                                <i data-lucide="brain-circuit" style="width: 28px; height: 28px; margin-bottom: 8px; opacity: 0.5;"></i>
+                                <span style="font-size: 13px;">當前記憶庫為空</span>
+                                <p style="font-size: 11px; margin-top: 4px; max-width: 280px;">開啟記憶庫後，AI 將在對話結束後自動提取您的背景與偏好事實。</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

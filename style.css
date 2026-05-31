@@ -3509,3 +3509,102 @@ body.theme-literary-tea .deck-select option {
 body.theme-literary-tea .deck-slider::-webkit-slider-thumb {
     background: #b87a6c;
 }
+
+/* ==========================================================================
+   LONG-TERM MEMORY HUB STYLES (安靜長期記憶庫)
+   ========================================================================== */
+
+/* Toggle Switch Slider */
+.switch-container {
+    position: relative;
+    width: 44px;
+    height: 24px;
+}
+
+.switch-slider {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--border-color);
+    border-radius: 9999px;
+    transition: all 0.2s ease;
+}
+
+.switch-slider::before {
+    content: "";
+    position: absolute;
+    height: 16px;
+    width: 16px;
+    left: 3px;
+    bottom: 3px;
+    background-color: var(--text-secondary);
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+input:checked + .switch-slider {
+    background-color: var(--color-deepseek);
+    border-color: var(--color-deepseek);
+}
+
+body.theme-literary-tea input:checked + .switch-slider {
+    background-color: #b87a6c;
+    border-color: #b87a6c;
+}
+
+input:checked + .switch-slider::before {
+    transform: translateX(20px);
+    background-color: #ffffff;
+}
+
+/* Memory Chip Item */
+.memory-chip-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    transition: all 0.2s ease;
+}
+
+body.theme-literary-tea .memory-chip-item {
+    background: #faf8f5;
+    border-color: rgba(140, 125, 110, 0.15);
+}
+
+.memory-chip-item:hover {
+    border-color: var(--border-focus);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+body.theme-literary-tea .memory-chip-item:hover {
+    background: #faf8f5;
+    border-color: #b87a6c;
+    box-shadow: 0 2px 8px rgba(100, 85, 70, 0.04);
+}
+
+.memory-chip-text {
+    font-size: 13px;
+    color: var(--text-primary);
+    flex: 1;
+    font-family: var(--font-sans);
+}
+
+.memory-chip-delete {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.memory-chip-delete:hover {
+    color: var(--color-danger);
+    transform: scale(1.1);
+}
